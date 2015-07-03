@@ -10,6 +10,7 @@
 #include "wave.h"
 #include "buffer.h"
 #include "menu.h"
+#include "sound.h"
 
 #define FPS 60
 #define N_KEYS 3
@@ -52,6 +53,7 @@ struct Jogo{
 	Buffer* buffer;
 	Escudo* escudo[N_ESCUDOS];
 	Tanque* tanque;
+	SOUND_MANAGER* sound_mng;
 	wave* invasores;
 };
 

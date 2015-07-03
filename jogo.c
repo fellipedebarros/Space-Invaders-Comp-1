@@ -12,6 +12,8 @@ void allegro_init(Jogo* jogo);
 void allegro_image_init(Jogo* jogo);
 void allegro_primitives_init(Jogo* jogo);
 void allegro_audio_init(Jogo* jogo);
+void allegro_acodec_init(Jogo* jogo);
+void allegro_reserve_samples(Jogo* jogo);
 void allegro_font_init(Jogo* jogo);
 void allegro_mouse_init(Jogo* jogo);
 void allegro_keyboard_init(Jogo* jogo);
@@ -27,6 +29,7 @@ void menu_opcoes_init(Jogo* jogo);
 //Inicializações da partida:
 void cria_escudos(Jogo* jogo);
 void cria_tanque(Jogo* jogo);
+void cria_sound_manager(Jogo *jogo);
 void finaliza_jogo(Jogo* jogo);
 
 //Botões dos menus:
@@ -54,6 +57,8 @@ void inicializa_jogo (Jogo* jogo){
 	allegro_image_init(jogo);
 	allegro_primitives_init(jogo);
 	allegro_audio_init(jogo);
+	allegro_acodec_init(jogo);
+	allegro_reserve_samples(jogo);
 	allegro_font_init(jogo);
 	
 	allegro_mouse_init(jogo);
@@ -67,6 +72,8 @@ void inicializa_jogo (Jogo* jogo){
 	menu_inicial_init( jogo);
 	menu_pausa_init( jogo);
 	menu_opcoes_init( jogo);
+
+	cria_sound_manager(jogo);
 	
 	for (int i = 0; i<N_ESCUDOS; i++)
 		jogo->escudo[i] = NULL;
@@ -160,6 +167,7 @@ void destroi_jogo (Jogo* jogo){
 	finaliza_menu( jogo->menu[0]);
 	finaliza_menu( jogo->menu[1]);
 	finaliza_menu( jogo->menu[2]);
+	if (jogo->sound_mng) jogo->sound_mng = finaliza_sound_manager(jogo->sound_mng);
 	al_destroy_event_queue(jogo->event_queue);
 	al_destroy_timer(jogo->timer);
 	al_destroy_display(jogo->display);
@@ -185,19 +193,23 @@ void allegro_primitives_init(Jogo* jogo){
 	}
 }
 
-void allegro_audio_init(Jogo* jogo){
+void allegro_audio_init(Jogo *jogo){
 	if(!al_install_audio()){
-		al_show_native_message_box(jogo->display, "Erro", "Erro", "Falha ao iniciar o addon de áudios do Allegro.", "OK", ALLEGRO_MESSAGEBOX_ERROR);
+		al_show_native_message_box(jogo->display, "Erro", "Erro", "Falha ao iniciar o addon de audio do Allegro.", "OK", ALLEGRO_MESSAGEBOX_ERROR);
 		exit(1);		
 	}
+}
 
+void allegro_acodec_init(Jogo* jogo){
 	if(!al_init_acodec_addon()){
-		al_show_native_message_box(jogo->display, "Erro", "Erro", "Falha ao iniciar o addon de acodec do Allegro.", "OK", ALLEGRO_MESSAGEBOX_ERROR);
+		al_show_native_message_box(jogo->display, "Erro", "Erro", "Falha ao iniciar os codecs de audio do Allegro.", "OK", ALLEGRO_MESSAGEBOX_ERROR);
 		exit(1);		
 	}
+}
 
+void allegro_reserve_samples(Jogo *jogo){
 	if(!al_reserve_samples(N_SAMPLES)){
-		al_show_native_message_box(jogo->display, "Erro", "Erro", "Falha ao alocar canais de áudio.", "OK", ALLEGRO_MESSAGEBOX_ERROR);
+		al_show_native_message_box(jogo->display, "Erro", "Erro", "Falha ao reservar as samples de audio do Allegro.", "OK", ALLEGRO_MESSAGEBOX_ERROR);
 		exit(1);		
 	}
 }
@@ -267,10 +279,13 @@ void menu_pausa_init(Jogo* jogo){
 	cria_botao(jogo->menu[MENU_DE_PAUSA], 2, "Menu principal", ir_para_menu_inicial, jogo); 
 }
 void menu_opcoes_init(Jogo* jogo){
-	jogo->menu[MENU_DE_OPCOES] = inicializa_menu( jogo->fonte, jogo->largura, jogo->altura, 3, 0);
+	jogo->menu[MENU_DE_OPCOES] = inicializa_menu( jogo->fonte, jogo->largura, jogo->altura, 6, 0);
 	cria_botao(jogo->menu[MENU_DE_OPCOES], 0, "Aumenta resolucao", aumenta_tela, jogo); 
-	cria_botao(jogo->menu[MENU_DE_OPCOES], 1, "Dimunui resolucao", diminui_tela, jogo); 
-	cria_botao(jogo->menu[MENU_DE_OPCOES], 2, "Menu principal", ir_para_menu_inicial, jogo); 
+	cria_botao(jogo->menu[MENU_DE_OPCOES], 1, "Dimunui resolucao", diminui_tela, jogo);
+	cria_botao(jogo->menu[MENU_DE_OPCOES], 2, "Liga/Desliga som", toggle_sound_state, jogo->sound_mng);
+	cria_botao(jogo->menu[MENU_DE_OPCOES], 3, "Aumenta volume", rise_sound_volume, jogo->sound_mng);
+	cria_botao(jogo->menu[MENU_DE_OPCOES], 4, "Diminui volume", low_sound_volume, jogo->sound_mng); 
+	cria_botao(jogo->menu[MENU_DE_OPCOES], 5, "Menu principal", ir_para_menu_inicial, jogo); 
 }
 
 //Funções usadas na inicialização da partida:
@@ -294,6 +309,16 @@ void cria_tanque(Jogo* jogo){
 		exit(1);
 	}
 }
+
+void cria_sound_manager(Jogo* jogo){
+	jogo->sound_mng = inicializa_sound_manager();
+	if(!jogo->sound_mng){
+		al_show_native_message_box(jogo->display, "Erro", "Erro", "Falha ao iniciar o sound manager.", "OK", ALLEGRO_MESSAGEBOX_ERROR);
+		destroi_jogo(jogo);
+		exit(1);
+	}
+}
+
 void finaliza_jogo(Jogo* jogo){
 	// jogo->invasores = deestroi_wave(jogo->invasores);
 	if(jogo->tanque) jogo-> tanque = destroi_tanque(jogo->tanque);
@@ -374,6 +399,7 @@ void get_keyboard_down(Jogo* jogo, ALLEGRO_EVENT ev){
 			break;
 		case ALLEGRO_KEY_SPACE:
 			jogo->key[KEY_SPACE] = true;
+			play_sound(jogo->sound_mng, SHOOT, ALLEGRO_PLAYMODE_ONCE);
 			atira_tanque(jogo->tanque);
 			break;
 		case ALLEGRO_KEY_LEFT:
